@@ -1,0 +1,868 @@
+```html
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon API</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #202b2a;
+            --muted: #687674;
+            --paper: #ffffff;
+            --canvas: #eff5f2;
+            --line: #d7e2de;
+            --red: #d9433b;
+            --yellow: #f4ca50;
+            --teal: #21766d;
+            --font-body: "Space Grotesk", sans-serif;
+            --font-display: "Bungee", "Space Grotesk", sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 320px;
+            margin: 0;
+            color: var(--ink);
+            background-color: var(--canvas);
+            background-image: linear-gradient(rgb(32 43 42 / 3%) 1px, transparent 1px),
+                linear-gradient(90deg, rgb(32 43 42 / 3%) 1px, transparent 1px);
+            background-size: 28px 28px;
+            font-family: var(--font-body);
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        .masthead {
+            position: relative;
+            overflow: hidden;
+            color: white;
+            background: var(--red);
+            border-bottom: 5px solid var(--ink);
+        }
+
+        .masthead::after {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 34%;
+            height: 8px;
+            background: var(--yellow);
+            content: "";
+        }
+
+        .masthead-inner,
+        main {
+            width: min(1160px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
+        .masthead-inner {
+            display: flex;
+            min-height: 116px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 20px 0;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-ball {
+            position: relative;
+            width: 46px;
+            height: 46px;
+            flex: 0 0 auto;
+            border: 4px solid var(--ink);
+            border-radius: 50%;
+            background: linear-gradient(to bottom, white 0 46%, var(--ink) 46% 55%, white 55%);
+        }
+
+        .brand-ball::after {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 13px;
+            height: 13px;
+            border: 3px solid var(--ink);
+            border-radius: 50%;
+            background: var(--yellow);
+            content: "";
+            transform: translate(-50%, -50%);
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-family: var(--font-display);
+            font-size: 28px;
+            font-weight: 400;
+            line-height: 1.15;
+        }
+
+        .brand p,
+        .edition-tag p {
+            margin: 5px 0 0;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .edition-tag {
+            display: grid;
+            justify-items: end;
+            gap: 7px;
+        }
+
+        .edition-tag strong {
+            font-size: 14px;
+        }
+
+        .live-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 9px;
+            border: 1px solid rgb(255 255 255 / 55%);
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+        }
+
+        .live-mark::before {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--yellow);
+            content: "";
+        }
+
+        main {
+            padding: 34px 0 56px;
+        }
+
+        .collection-heading {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .collection-heading h2 {
+            margin: 0;
+            font-size: 25px;
+            line-height: 1.2;
+        }
+
+        .eyebrow {
+            margin: 0 0 7px;
+            color: var(--teal);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        #resultSummary {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: end;
+            gap: 12px;
+            margin-bottom: 22px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-top: 3px solid var(--teal);
+            background: var(--paper);
+        }
+
+        .field {
+            display: grid;
+            min-width: 0;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .field span {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .field input,
+        .field select {
+            min-height: 42px;
+            padding: 9px 12px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            outline: none;
+            color: var(--ink);
+            background: white;
+        }
+
+        .field input:focus,
+        .field select:focus,
+        .move-controls input:focus,
+        .move-controls select:focus {
+            border-color: var(--teal);
+            box-shadow: 0 0 0 3px rgb(33 118 109 / 16%);
+        }
+
+        .search-field {
+            flex: 1 1 340px;
+        }
+
+        .sort-field {
+            flex: 0 1 250px;
+        }
+
+        #pokemonList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+            gap: 14px;
+        }
+
+        .card {
+            position: relative;
+            display: grid;
+            min-width: 0;
+            min-height: 220px;
+            justify-items: center;
+            align-content: center;
+            gap: 5px;
+            overflow: hidden;
+            padding: 15px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            color: var(--ink);
+            background: var(--paper);
+            cursor: pointer;
+            text-align: center;
+            transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+        }
+
+        .card::before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--red);
+            content: "";
+        }
+
+        .card:nth-child(4n + 2)::before {
+            background: var(--yellow);
+        }
+
+        .card:nth-child(4n + 3)::before {
+            background: #46a9a0;
+        }
+
+        .card:nth-child(4n + 4)::before {
+            background: #4f83ae;
+        }
+
+        .card:hover {
+            z-index: 1;
+            border-color: #98b8b0;
+            box-shadow: 0 8px 18px rgb(32 43 42 / 10%);
+            transform: translateY(-3px);
+        }
+
+        .card:focus-visible,
+        #closeDialog:focus-visible {
+            outline: 3px solid var(--teal);
+            outline-offset: 3px;
+        }
+
+        .card img {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+
+        .card h3 {
+            margin: 1px 0 0;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        #pokemonDialog {
+            width: min(820px, calc(100% - 28px));
+            max-height: calc(100% - 28px);
+            padding: 22px;
+            border: 2px solid var(--ink);
+            border-top: 7px solid var(--red);
+            border-radius: 8px;
+            color: var(--ink);
+            background: var(--paper);
+            box-shadow: 0 18px 60px rgb(0 0 0 / 25%);
+        }
+
+        #pokemonDialog::backdrop {
+            background: rgb(20 37 35 / 68%);
+            backdrop-filter: blur(3px);
+        }
+
+        .detail-header,
+        .move-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .detail-header h2,
+        .detail-header p {
+            margin: 4px 0;
+        }
+
+        .detail-header h2 {
+            font-size: 25px;
+            text-transform: capitalize;
+        }
+
+        #detailNumber {
+            color: var(--teal);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        #closeDialog {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--ink);
+            background: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .move-controls {
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+
+        .move-controls label {
+            display: grid;
+            min-width: 180px;
+            gap: 5px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-align: left;
+            text-transform: uppercase;
+        }
+
+        .move-controls select,
+        .move-controls input {
+            min-height: 40px;
+            max-width: 100%;
+            margin: 0;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--ink);
+            background: white;
+            font-size: 14px;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
+        #moveStatus {
+            min-height: 20px;
+            margin: 12px 0 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .move-table-wrap {
+            max-height: 55vh;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+        }
+
+        #moveTable {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        #moveTable th,
+        #moveTable td {
+            padding: 9px 10px;
+            border-bottom: 1px solid var(--line);
+            font-size: 13px;
+            text-transform: capitalize;
+        }
+
+        #moveTable th {
+            position: sticky;
+            top: 0;
+            color: white;
+            background: var(--teal);
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        #moveTable tbody tr:nth-child(even) {
+            background: #f3f8f6;
+        }
+
+        @media (max-width: 600px) {
+            .masthead-inner,
+            main {
+                width: min(100% - 28px, 1160px);
+            }
+
+            .masthead-inner {
+                min-height: 96px;
+                padding: 16px 0;
+            }
+
+            .brand {
+                gap: 10px;
+            }
+
+            .brand-ball {
+                width: 38px;
+                height: 38px;
+            }
+
+            .brand h1 {
+                font-size: 21px;
+            }
+
+            .edition-tag strong {
+                font-size: 12px;
+            }
+
+            main {
+                padding-top: 25px;
+            }
+
+            .toolbar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            #pokemonList {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .card {
+                min-height: 190px;
+                padding: 12px 8px;
+            }
+
+            .card img {
+                width: 108px;
+                height: 108px;
+            }
+
+            #pokemonDialog {
+                padding: 15px;
+            }
+
+            #moveTable th,
+            #moveTable td {
+                padding: 7px 5px;
+                font-size: 11px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="masthead">
+        <div class="masthead-inner">
+            <div class="brand">
+                <span class="brand-ball" aria-hidden="true"></span>
+                <div>
+                    <h1>Pokédex</h1>
+                    <p>National collection</p>
+                </div>
+            </div>
+            <div class="edition-tag">
+                <span class="live-mark">Live API</span>
+                <strong>001 — 1025</strong>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="collection-heading" aria-labelledby="collectionTitle">
+            <div>
+                <p class="eyebrow">01 / Collection</p>
+                <h2 id="collectionTitle">All Pokémon</h2>
+            </div>
+            <p id="resultSummary" role="status" aria-live="polite">Loading...</p>
+        </section>
+
+        <section class="toolbar" aria-label="Pokémon filters">
+            <label class="field search-field" for="search">
+                <span>Search</span>
+                <input type="search" id="search" placeholder="Name or Pokédex number...">
+            </label>
+            <label class="field sort-field" for="sort">
+                <span>Sort by</span>
+                <select id="sort">
+                    <option value="az">Name A → Z</option>
+                    <option value="za">Name Z → A</option>
+                    <option value="number-asc">Number low to high</option>
+                    <option value="number-desc">Number high to low</option>
+                </select>
+            </label>
+        </section>
+
+        <div id="pokemonList"></div>
+    </main>
+
+    <dialog id="pokemonDialog" aria-labelledby="detailName">
+        <div class="detail-header">
+            <div>
+                <p id="detailNumber"></p>
+                <h2 id="detailName"></h2>
+            </div>
+            <button id="closeDialog" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="move-controls">
+            <label>
+                Game version
+                <select id="versionFilter">
+                    <option value="">All versions</option>
+                </select>
+            </label>
+            <label>
+                Search moves
+                <input id="moveSearch" type="search" placeholder="Move name...">
+            </label>
+        </div>
+        <p id="moveStatus" role="status" aria-live="polite"></p>
+        <div class="move-table-wrap">
+            <table id="moveTable">
+                <thead>
+                    <tr>
+                        <th>Move</th>
+                        <th>Learn method</th>
+                        <th>Level</th>
+                        <th>Version</th>
+                    </tr>
+                </thead>
+                <tbody id="moveRows"></tbody>
+            </table>
+        </div>
+    </dialog>
+
+    <script>
+        let pokemonList = [];
+        let activePokemon = null;
+        let activeRequest = 0;
+        const pokemonDetails = new Map();
+
+        // ดึงข้อมูลจาก PokéAPI
+        async function loadPokemon() {
+
+            const response = await fetch(
+                "https://pokeapi.co/api/v2/pokemon?limit=1025"
+            );
+
+            const data = await response.json();
+
+            pokemonList = data.results;
+
+            displayPokemon();
+        }
+
+
+        // =========================
+        // SEARCH
+        // =========================
+
+        function searchPokemon() {
+
+            const searchText =
+                document.getElementById("search").value.toLowerCase();
+
+            const result = pokemonList.filter(pokemon =>
+                pokemon.name.toLowerCase().includes(searchText) ||
+                pokemon.url.split("/")[6].includes(searchText)
+            );
+
+            displayPokemon(result);
+        }
+
+
+        // =========================
+        // SORT
+        // =========================
+
+        function sortPokemon(list) {
+
+            const sortType =
+                document.getElementById("sort").value;
+
+            if (sortType === "number-asc") {
+
+                list.sort((a, b) =>
+                    Number(a.url.split("/")[6]) - Number(b.url.split("/")[6])
+                );
+
+            } else if (sortType === "number-desc") {
+
+                list.sort((a, b) =>
+                    Number(b.url.split("/")[6]) - Number(a.url.split("/")[6])
+                );
+
+            } else if (sortType === "az") {
+
+                list.sort((a, b) =>
+                    a.name.localeCompare(b.name)
+                );
+
+            } else {
+
+                list.sort((a, b) =>
+                    b.name.localeCompare(a.name)
+                );
+            }
+
+            return list;
+        }
+
+
+        // =========================
+        // DISPLAY
+        // =========================
+
+        function displayPokemon(list = pokemonList) {
+
+            const container =
+                document.getElementById("pokemonList");
+
+            container.innerHTML = "";
+
+            // ใช้ Sort ก่อนแสดงผล
+            list = sortPokemon([...list]);
+            document.getElementById("resultSummary").textContent =
+                `${list.length} Pokémon`;
+
+            list.forEach(pokemon => {
+
+                const id =
+                    pokemon.url.split("/")[6];
+
+                const card = document.createElement("button");
+
+                card.className = "card";
+                card.type = "button";
+                card.setAttribute("aria-label", `Show moves for ${pokemon.name}`);
+
+                card.innerHTML = `
+                    <img
+                        src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png"
+                    >
+
+                    <h3>${pokemon.name}</h3>
+
+                    <p>#${id}</p>
+                `;
+
+                card.addEventListener("click", () => showPokemonDetails(pokemon));
+
+                container.appendChild(card);
+            });
+        }
+
+
+        async function showPokemonDetails(pokemon) {
+
+            const dialog = document.getElementById("pokemonDialog");
+            const requestId = ++activeRequest;
+            const id = pokemon.url.split("/")[6];
+
+            activePokemon = null;
+            document.getElementById("detailName").textContent = pokemon.name;
+            document.getElementById("detailNumber").textContent = `#${id}`;
+            document.getElementById("moveStatus").textContent = "Loading moves...";
+            document.getElementById("moveRows").replaceChildren();
+            document.getElementById("moveSearch").value = "";
+            document.getElementById("versionFilter").replaceChildren(
+                new Option("All versions", "")
+            );
+
+            if (!dialog.open) {
+                dialog.showModal();
+            }
+
+            try {
+                let detail = pokemonDetails.get(pokemon.url);
+
+                if (!detail) {
+                    const response = await fetch(pokemon.url);
+
+                    if (!response.ok) {
+                        throw new Error("Unable to load Pokémon details");
+                    }
+
+                    detail = await response.json();
+                    pokemonDetails.set(pokemon.url, detail);
+                }
+
+                if (requestId !== activeRequest) {
+                    return;
+                }
+
+                activePokemon = detail;
+                const versions = [...new Set(
+                    detail.moves.flatMap(({ version_group_details }) =>
+                        version_group_details.map(({ version_group }) => version_group.name)
+                    )
+                )];
+                const versionFilter = document.getElementById("versionFilter");
+
+                versions.forEach(version => {
+                    versionFilter.add(new Option(version.replaceAll("-", " "), version));
+                });
+
+                if (versions.length > 0) {
+                    versionFilter.value = versions[versions.length - 1];
+                }
+
+                renderPokemonMoves();
+            } catch (error) {
+                if (requestId === activeRequest) {
+                    document.getElementById("moveStatus").textContent =
+                        "Could not load moves. Please try again.";
+                }
+            }
+        }
+
+
+        function renderPokemonMoves() {
+
+            if (!activePokemon) {
+                return;
+            }
+
+            const selectedVersion = document.getElementById("versionFilter").value;
+            const searchText = document.getElementById("moveSearch").value.toLowerCase();
+            const moves = activePokemon.moves.flatMap(({ move, version_group_details }) =>
+                version_group_details
+                    .filter(detail =>
+                        (!selectedVersion || detail.version_group.name === selectedVersion) &&
+                        move.name.includes(searchText)
+                    )
+                    .map(detail => ({
+                        name: move.name,
+                        method: detail.move_learn_method.name,
+                        level: detail.level_learned_at,
+                        version: detail.version_group.name
+                    }))
+            ).sort((a, b) => a.name.localeCompare(b.name));
+
+            const rows = document.getElementById("moveRows");
+            rows.replaceChildren();
+
+            moves.forEach(move => {
+                const row = document.createElement("tr");
+
+                [
+                    move.name.replaceAll("-", " "),
+                    move.method.replaceAll("-", " "),
+                    move.level || "-",
+                    move.version.replaceAll("-", " ")
+                ].forEach(value => {
+                    const cell = document.createElement("td");
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+                rows.appendChild(row);
+            });
+
+            document.getElementById("moveStatus").textContent = moves.length
+                ? `${moves.length} moves found`
+                : "No moves found.";
+        }
+
+
+        document.getElementById("closeDialog").addEventListener("click", () => {
+            document.getElementById("pokemonDialog").close();
+        });
+
+        document.getElementById("versionFilter").addEventListener("change", renderPokemonMoves);
+        document.getElementById("moveSearch").addEventListener("input", renderPokemonMoves);
+
+
+        // เมื่อพิมพ์ Search
+        document
+            .getElementById("search")
+            .addEventListener("input", searchPokemon);
+
+
+        // เมื่อเปลี่ยน Sort
+        document
+            .getElementById("sort")
+            .addEventListener("change", searchPokemon);
+
+
+        // เริ่มโหลดข้อมูล
+        loadPokemon();
+
+    </script>
+
+</body>
+</html>
+```
