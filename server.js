@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 const POKEMON_LIMIT = 1025;
 const POKEMON_TYPES = [
     'normal', 'fire', 'water', 'grass', 'electric', 'ice',

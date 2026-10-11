@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: poke-api
-    runtime: node
-    plan: free
-    buildCommand: npm ci
-    startCommand: npm start
