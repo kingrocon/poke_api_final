@@ -1,0 +1,12 @@
+{
+  "name": "poke_api",
+  "version": "1.0.0",
+  "description": "A Pokedex web app powered by PokeAPI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}
