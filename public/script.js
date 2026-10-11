@@ -12,6 +12,12 @@ const pokemonDetails = new Map();
 const moveDetails = new Map();
 const evolutionChains = new Map();
 const evolutionPokemonDetails = new Map();
+const pokemonTypeDetails = new Map();
+const allPokemonTypes = [
+    'normal', 'fire', 'water', 'grass', 'electric', 'ice',
+    'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
+    'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'
+];
 const pokemonTypeColors = {
     normal: '#a8a77a',
     fire: '#ee8130',
@@ -781,6 +787,221 @@ function renderPokemonTypes(detail) {
     }
 }
 
+function renderBattleStatsAndAbilities(detail) {
+    const statsContainer = document.getElementById('detailStats');
+    const abilitiesContainer = document.getElementById('detailAbilities');
+    statsContainer.replaceChildren();
+    abilitiesContainer.replaceChildren();
+
+    if (detail.stats?.length) {
+        let total = 0;
+
+        detail.stats.forEach(({ base_stat: value, stat }) => {
+            total += value;
+            const row = document.createElement('div');
+            row.className = 'battle-stat';
+
+            const name = document.createElement('span');
+            name.className = 'battle-stat-name';
+            name.textContent = stat.name.replaceAll('-', ' ');
+
+            const track = document.createElement('div');
+            track.className = 'battle-stat-track';
+            track.setAttribute('aria-hidden', 'true');
+
+            const bar = document.createElement('div');
+            bar.className = 'battle-stat-bar';
+            bar.style.width = `${Math.max(3, Math.min(value / 255 * 100, 100))}%`;
+            track.appendChild(bar);
+
+            const statValue = document.createElement('span');
+            statValue.className = 'battle-stat-value';
+            statValue.textContent = value;
+
+            row.append(name, track, statValue);
+            statsContainer.appendChild(row);
+        });
+
+        const totalRow = document.createElement('div');
+        totalRow.className = 'battle-stat battle-stat-total';
+        const totalLabel = document.createElement('span');
+        totalLabel.textContent = 'Total';
+        const totalValue = document.createElement('span');
+        totalValue.className = 'battle-stat-value';
+        totalValue.textContent = total;
+        totalRow.append(totalLabel, document.createElement('span'), totalValue);
+        statsContainer.appendChild(totalRow);
+    } else {
+        statsContainer.textContent = 'Base stats are unavailable.';
+    }
+
+    if (detail.abilities?.length) {
+        detail.abilities.forEach(({ ability, is_hidden: isHidden }) => {
+            const chip = document.createElement('span');
+            chip.className = 'ability-chip';
+            chip.textContent = ability.name.replaceAll('-', ' ');
+
+            if (isHidden) {
+                const label = document.createElement('small');
+                label.textContent = 'Hidden ability';
+                chip.appendChild(label);
+            }
+
+            abilitiesContainer.appendChild(chip);
+        });
+    } else {
+        abilitiesContainer.textContent = 'Abilities are unavailable.';
+    }
+}
+
+async function fetchPokemonTypeDetails(type) {
+    if (!pokemonTypeDetails.has(type.name)) {
+        const request = fetch(type.url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Unable to load ${type.name} type matchups`);
+                }
+
+                return response.json();
+            })
+            .catch(error => {
+                pokemonTypeDetails.delete(type.name);
+                throw error;
+            });
+        pokemonTypeDetails.set(type.name, request);
+    }
+
+    return pokemonTypeDetails.get(type.name);
+}
+
+function appendMatchupGroup(container, title, types, multiplier) {
+    if (types.length === 0) {
+        return;
+    }
+
+    const group = document.createElement('div');
+    group.className = 'matchup-group';
+
+    const heading = document.createElement('strong');
+    heading.textContent = title;
+    group.appendChild(heading);
+
+    const chips = document.createElement('div');
+    chips.className = 'matchup-list';
+
+    types.forEach(type => {
+        const chip = document.createElement('span');
+        chip.className = 'matchup-chip';
+        chip.dataset.multiplier = String(multiplier);
+        chip.textContent = multiplier === 0
+            ? type
+            : `${type} · ${multiplier}×`;
+        chips.appendChild(chip);
+    });
+
+    group.appendChild(chips);
+    container.appendChild(group);
+}
+
+async function loadTypeMatchups(detail, requestId, formRequestId) {
+    const status = document.getElementById('typeMatchupStatus');
+    const container = document.getElementById('typeMatchups');
+    status.textContent = 'Loading type matchups...';
+    container.replaceChildren();
+
+    try {
+        const typeDetails = await Promise.all(
+            detail.types.map(({ type }) => fetchPokemonTypeDetails(type))
+        );
+
+        if (
+            requestId !== activeRequest ||
+            (formRequestId !== undefined &&
+                formRequestId !== activeFormRequest)
+        ) {
+            return;
+        }
+
+        const multipliers = new Map(
+            allPokemonTypes.map(type => [type, 1])
+        );
+
+        typeDetails.forEach(({ damage_relations: relations }) => {
+            allPokemonTypes.forEach(attackType => {
+                if (relations.no_damage_from.some(type => type.name === attackType)) {
+                    multipliers.set(attackType, 0);
+                } else if (multipliers.get(attackType) !== 0) {
+                    if (relations.double_damage_from.some(type => type.name === attackType)) {
+                        multipliers.set(
+                            attackType,
+                            multipliers.get(attackType) * 2
+                        );
+                    } else if (relations.half_damage_from.some(type => type.name === attackType)) {
+                        multipliers.set(
+                            attackType,
+                            multipliers.get(attackType) * 0.5
+                        );
+                    }
+                }
+            });
+        });
+
+        const weak = [...multipliers]
+            .filter(([, multiplier]) => multiplier > 1)
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        const resistant = [...multipliers]
+            .filter(([, multiplier]) => multiplier > 0 && multiplier < 1)
+            .sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+        const immune = [...multipliers]
+            .filter(([, multiplier]) => multiplier === 0)
+            .map(([type]) => type)
+            .sort();
+
+        appendMatchupGroup(
+            container,
+            'Weak to',
+            weak.filter(([, multiplier]) => multiplier === 4)
+                .map(([type]) => type),
+            4
+        );
+        appendMatchupGroup(
+            container,
+            'Weak to',
+            weak.filter(([, multiplier]) => multiplier === 2)
+                .map(([type]) => type),
+            2
+        );
+        appendMatchupGroup(
+            container,
+            'Resists',
+            resistant.filter(([, multiplier]) => multiplier === 0.25)
+                .map(([type]) => type),
+            0.25
+        );
+        appendMatchupGroup(
+            container,
+            'Resists',
+            resistant.filter(([, multiplier]) => multiplier === 0.5)
+                .map(([type]) => type),
+            0.5
+        );
+        appendMatchupGroup(container, 'Immune to', immune, 0);
+        status.textContent = container.childElementCount
+            ? 'Damage taken from opposing move types.'
+            : 'All types deal normal damage.';
+    } catch (error) {
+        console.error(error);
+
+        if (
+            requestId === activeRequest &&
+            (formRequestId === undefined ||
+                formRequestId === activeFormRequest)
+        ) {
+            status.textContent = 'Could not load type matchups. Please try again.';
+        }
+    }
+}
+
 async function loadEncounterDetails(detail, requestId, formRequestId) {
     const summary = document.getElementById('encounterSummary');
     const container = document.getElementById('encounterDetails');
@@ -1010,6 +1231,8 @@ async function updatePokemonForm(variety, requestId) {
                 ? 'auto'
                 : 'pixelated';
         renderPokemonTypes(formDetail);
+        renderBattleStatsAndAbilities(formDetail);
+        loadTypeMatchups(formDetail, requestId, formRequestId);
         updatePokemonGenderAppearance(formDetail);
         loadEncounterDetails(formDetail, requestId, formRequestId);
 
@@ -1143,6 +1366,13 @@ async function showPokemonDetails(pokemon, preferredFormName = '') {
     document.getElementById('moveRows').replaceChildren();
     document.getElementById('moveSearch').value = '';
     document.getElementById('detailTypes').textContent = 'Loading...';
+    document.getElementById('detailStats').replaceChildren();
+    document.getElementById('detailStats').textContent = 'Loading stats...';
+    document.getElementById('detailAbilities').replaceChildren();
+    document.getElementById('detailAbilities').textContent = 'Loading abilities...';
+    document.getElementById('typeMatchupStatus').textContent =
+        'Loading type matchups...';
+    document.getElementById('typeMatchups').replaceChildren();
     document.getElementById('encounterSummary').textContent =
         'Loading encounter information...';
     document.getElementById('encounterDetails').replaceChildren();
@@ -1197,6 +1427,8 @@ async function showPokemonDetails(pokemon, preferredFormName = '') {
             detail.sprites.front_default ||
             `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.id}.png`;
         renderPokemonTypes(detail);
+        renderBattleStatsAndAbilities(detail);
+        loadTypeMatchups(detail, requestId);
         loadEncounterDetails(detail, requestId);
 
         const versions = [
