@@ -198,6 +198,61 @@
             background: var(--paper);
         }
 
+        .discovery-filters {
+            margin: -10px 0 22px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            background: var(--paper);
+        }
+
+        .discovery-filters summary {
+            padding: 12px 14px;
+            color: var(--teal);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .discovery-filter-content {
+            padding: 0 14px 14px;
+        }
+
+        .discovery-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .discovery-filter-footer {
+            display: flex;
+            min-height: 38px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        #filterStatus {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        #clearDiscoveryFilters {
+            min-height: 38px;
+            padding: 7px 11px;
+            border: 1px solid var(--line);
+            border-radius: 4px;
+            color: var(--ink);
+            background: white;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        #clearDiscoveryFilters:hover {
+            border-color: var(--teal);
+        }
+
         .field {
             display: grid;
             min-width: 0;
@@ -796,6 +851,7 @@
         #pokemonDialog {
             width: min(820px, calc(100% - 28px));
             max-height: calc(100% - 28px);
+            overflow-y: auto;
             padding: 22px;
             border: 2px solid var(--ink);
             border-top: 7px solid var(--red);
@@ -868,6 +924,13 @@
             justify-content: flex-start;
             flex-wrap: wrap;
             margin: 12px 0;
+        }
+
+        #moveVersionHelp {
+            margin: -4px 0 8px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.45;
         }
 
         .move-controls label {
@@ -983,6 +1046,19 @@
                 flex-direction: column;
             }
 
+            .discovery-filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .discovery-filter-footer {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            #clearDiscoveryFilters {
+                min-height: 44px;
+            }
+
             #pokemonList {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 10px;
@@ -999,7 +1075,42 @@
             }
 
             #pokemonDialog {
-                padding: 15px;
+                width: calc(100% - 16px);
+                max-height: calc(100% - 16px);
+                padding: 14px;
+            }
+
+            .detail-header {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .detail-nav {
+                justify-content: flex-start;
+            }
+
+            .detail-nav button,
+            #detailPinButton {
+                min-height: 44px;
+            }
+
+            .detail-meta .battle-section {
+                flex-basis: 100%;
+            }
+
+            .move-controls {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .move-controls label,
+            .move-controls select,
+            .move-controls input {
+                width: 100%;
+            }
+
+            #moveTable {
+                min-width: 900px;
             }
 
             #moveTable th,
@@ -1065,6 +1176,77 @@
                 Show pinned
             </button>
         </section>
+
+        <details class="discovery-filters">
+            <summary>More filters: type, ability, generation, and evolution stage</summary>
+            <div class="discovery-filter-content">
+                <div class="discovery-filter-grid">
+                    <label class="field" for="typeFilter">
+                        <span>Type</span>
+                        <select id="typeFilter">
+                            <option value="">Any type</option>
+                            <option value="normal">Normal</option>
+                            <option value="fire">Fire</option>
+                            <option value="water">Water</option>
+                            <option value="grass">Grass</option>
+                            <option value="electric">Electric</option>
+                            <option value="ice">Ice</option>
+                            <option value="fighting">Fighting</option>
+                            <option value="poison">Poison</option>
+                            <option value="ground">Ground</option>
+                            <option value="flying">Flying</option>
+                            <option value="psychic">Psychic</option>
+                            <option value="bug">Bug</option>
+                            <option value="rock">Rock</option>
+                            <option value="ghost">Ghost</option>
+                            <option value="dragon">Dragon</option>
+                            <option value="dark">Dark</option>
+                            <option value="steel">Steel</option>
+                            <option value="fairy">Fairy</option>
+                        </select>
+                    </label>
+                    <label class="field" for="abilityFilter">
+                        <span>Ability</span>
+                        <select id="abilityFilter">
+                            <option value="">Any ability</option>
+                        </select>
+                    </label>
+                    <label class="field" for="generationFilter">
+                        <span>Generation</span>
+                        <select id="generationFilter">
+                            <option value="">Any generation</option>
+                            <option value="1">Generation I · Kanto</option>
+                            <option value="2">Generation II · Johto</option>
+                            <option value="3">Generation III · Hoenn</option>
+                            <option value="4">Generation IV · Sinnoh</option>
+                            <option value="5">Generation V · Unova</option>
+                            <option value="6">Generation VI · Kalos</option>
+                            <option value="7">Generation VII · Alola</option>
+                            <option value="8">Generation VIII · Galar</option>
+                            <option value="9">Generation IX · Paldea</option>
+                        </select>
+                    </label>
+                    <label class="field" for="stageFilter">
+                        <span>Evolution stage</span>
+                        <select id="stageFilter" disabled>
+                            <option value="">Any stage</option>
+                            <option value="base">Base stage</option>
+                            <option value="middle">Middle stage</option>
+                            <option value="final">Final stage</option>
+                            <option value="no-evolution">Does not evolve</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="discovery-filter-footer">
+                    <p id="filterStatus" role="status" aria-live="polite">
+                        Choose a type, ability, or generation to enable evolution-stage filtering.
+                    </p>
+                    <button id="clearDiscoveryFilters" type="button">
+                        Clear filters
+                    </button>
+                </div>
+            </div>
+        </details>
 
         <div id="pokemonList"></div>
     </main>
@@ -1140,7 +1322,7 @@
         </div>
         <div class="move-controls">
             <label>
-                Game version
+                Game version for move data
                 <select id="versionFilter">
                     <option value="">All versions</option>
                 </select>
@@ -1150,6 +1332,10 @@
                 <input id="moveSearch" type="search" placeholder="Move name...">
             </label>
         </div>
+        <p id="moveVersionHelp">
+            Move availability, learning method, and level can differ by game; each row shows its version.
+            Encounter locations above are grouped by game version.
+        </p>
         <p id="moveStatus" role="status" aria-live="polite"></p>
         <div class="move-table-wrap">
             <table id="moveTable">

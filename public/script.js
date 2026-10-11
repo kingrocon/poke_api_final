@@ -4,15 +4,20 @@ let activePokemonEntry = null;
 let activeRequest = 0;
 let activeFormRequest = 0;
 let moveRenderRequest = 0;
+let discoveryFilterRequest = 0;
 let activePokemonSpecies = null;
 let pinnedPokemon = new Set();
 let pokemonPrimaryTypes = new Map();
+let discoveryPokemonNames = null;
 
 const pokemonDetails = new Map();
 const moveDetails = new Map();
 const evolutionChains = new Map();
 const evolutionPokemonDetails = new Map();
 const pokemonTypeDetails = new Map();
+const discoveryResourceCache = new Map();
+const evolutionStageCache = new Map();
+const evolutionStageChainCache = new Map();
 const allPokemonTypes = [
     'normal', 'fire', 'water', 'grass', 'electric', 'ice',
     'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
@@ -65,6 +70,7 @@ async function loadPokemon() {
 
         pokemonList = await response.json();
         searchPokemon();
+        loadAbilityFilterOptions();
 
         try {
             const typeResponse = await fetch('/api/pokemon-types');
@@ -97,10 +103,258 @@ function searchPokemon() {
     const results = pokemonList.filter(pokemon =>
         (pokemon.name.includes(searchText) ||
             String(pokemon.id).includes(searchText)) &&
-        (!pinnedOnly || pinnedPokemon.has(pokemon.id))
+        (!pinnedOnly || pinnedPokemon.has(pokemon.id)) &&
+        (!discoveryPokemonNames ||
+            discoveryPokemonNames.has(pokemon.name))
     );
 
     displayPokemon(results);
+}
+
+function formatFilterLabel(name) {
+    return name
+        .split('-')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+async function fetchDiscoveryResource(url) {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(`Discovery filter request failed: ${url}`);
+    }
+
+    return response.json();
+}
+
+async function loadAbilityFilterOptions() {
+    const select = document.getElementById('abilityFilter');
+    select.disabled = true;
+
+    try {
+        const abilities = await fetchDiscoveryResource(
+            'https://pokeapi.co/api/v2/ability?limit=1000'
+        );
+
+        abilities.results
+            .sort((first, second) => first.name.localeCompare(second.name))
+            .forEach(({ name }) => {
+                select.add(new Option(formatFilterLabel(name), name));
+            });
+        select.disabled = false;
+    } catch (error) {
+        console.error('Could not load ability filter options.', error);
+        document.getElementById('filterStatus').textContent =
+            'Ability filters could not be loaded. Other filters are still available.';
+    }
+}
+
+function getDiscoveryResource(kind, value) {
+    const cacheKey = `${kind}:${value}`;
+
+    if (!discoveryResourceCache.has(cacheKey)) {
+        const urlByKind = {
+            type: `https://pokeapi.co/api/v2/type/${encodeURIComponent(value)}`,
+            ability: `https://pokeapi.co/api/v2/ability/${encodeURIComponent(value)}`,
+            generation: `https://pokeapi.co/api/v2/generation/${encodeURIComponent(value)}`
+        };
+        const request = fetchDiscoveryResource(urlByKind[kind])
+            .then(data => {
+                if (kind === 'type' || kind === 'ability') {
+                    return new Set(
+                        data.pokemon.map(({ pokemon }) => pokemon.name)
+                    );
+                }
+
+                return new Set(
+                    data.pokemon_species.map(species => species.name)
+                );
+            })
+            .catch(error => {
+                discoveryResourceCache.delete(cacheKey);
+                throw error;
+            });
+        discoveryResourceCache.set(cacheKey, request);
+    }
+
+    return discoveryResourceCache.get(cacheKey);
+}
+
+function getEvolutionStagesFromChain(chainUrl) {
+    if (!evolutionStageChainCache.has(chainUrl)) {
+        const request = fetchDiscoveryResource(chainUrl)
+            .then(({ chain }) => {
+                const stages = new Map();
+
+                function visit(node, depth) {
+                    const stage = depth === 0
+                        ? (node.evolves_to.length ? 'base' : 'no-evolution')
+                        : (node.evolves_to.length ? 'middle' : 'final');
+                    stages.set(node.species.name, stage);
+                    node.evolves_to.forEach(child => visit(child, depth + 1));
+                }
+
+                visit(chain, 0);
+                return stages;
+            })
+            .catch(error => {
+                evolutionStageChainCache.delete(chainUrl);
+                throw error;
+            });
+        evolutionStageChainCache.set(chainUrl, request);
+    }
+
+    return evolutionStageChainCache.get(chainUrl);
+}
+
+function getPokemonEvolutionStage(name) {
+    if (!evolutionStageCache.has(name)) {
+        const request = fetchDiscoveryResource(
+            `https://pokeapi.co/api/v2/pokemon-species/${encodeURIComponent(name)}`
+        )
+            .then(species => getEvolutionStagesFromChain(
+                species.evolution_chain.url
+            ))
+            .then(stages => {
+                if (!stages.has(name)) {
+                    throw new Error(`Evolution stage unavailable for ${name}`);
+                }
+
+                return stages.get(name);
+            })
+            .catch(error => {
+                evolutionStageCache.delete(name);
+                throw error;
+            });
+        evolutionStageCache.set(name, request);
+    }
+
+    return evolutionStageCache.get(name);
+}
+
+async function filterByEvolutionStage(names, stage, requestId) {
+    const filteredNames = new Set();
+    let nextIndex = 0;
+    let completed = 0;
+    let stageError = null;
+
+    async function loadStages() {
+        while (
+            nextIndex < names.length &&
+            requestId === discoveryFilterRequest &&
+            !stageError
+        ) {
+            const name = names[nextIndex];
+            nextIndex += 1;
+            try {
+                const pokemonStage = await getPokemonEvolutionStage(name);
+                completed += 1;
+                document.getElementById('filterStatus').textContent =
+                    `Checking evolution stages: ${completed} of ${names.length} Pokémon...`;
+
+                if (pokemonStage === stage) {
+                    filteredNames.add(name);
+                }
+            } catch (error) {
+                stageError = error;
+            }
+        }
+    }
+
+    await Promise.all(
+        Array.from(
+            { length: Math.min(10, names.length) },
+            () => loadStages()
+        )
+    );
+
+    if (stageError) {
+        throw stageError;
+    }
+
+    return filteredNames;
+}
+
+async function applyDiscoveryFilters() {
+    const type = document.getElementById('typeFilter').value;
+    const ability = document.getElementById('abilityFilter').value;
+    const generation = document.getElementById('generationFilter').value;
+    const stage = document.getElementById('stageFilter').value;
+    const stageSelect = document.getElementById('stageFilter');
+    const status = document.getElementById('filterStatus');
+    const requestId = ++discoveryFilterRequest;
+    const selectedCatalogFilters = [
+        ['type', type],
+        ['ability', ability],
+        ['generation', generation]
+    ].filter(([, value]) => value);
+
+    stageSelect.disabled = selectedCatalogFilters.length === 0;
+
+    if (stage && selectedCatalogFilters.length === 0) {
+        stageSelect.value = '';
+        status.textContent =
+            'Choose a type, ability, or generation before filtering by evolution stage.';
+        return;
+    }
+
+    if (selectedCatalogFilters.length === 0) {
+        discoveryPokemonNames = null;
+        status.textContent =
+            'Choose a type, ability, or generation to enable evolution-stage filtering.';
+        searchPokemon();
+        return;
+    }
+
+    status.textContent = 'Applying Pokémon filters...';
+
+    try {
+        const memberships = await Promise.all(
+            selectedCatalogFilters.map(([kind, value]) =>
+                getDiscoveryResource(kind, value)
+            )
+        );
+
+        if (requestId !== discoveryFilterRequest) {
+            return;
+        }
+
+        let names = pokemonList
+            .filter(pokemon =>
+                memberships.every(membership => membership.has(pokemon.name))
+            )
+            .map(pokemon => pokemon.name);
+
+        if (stage) {
+            status.textContent =
+                `Checking evolution stages for ${names.length} Pokémon...`;
+            const stageNames = await filterByEvolutionStage(
+                names,
+                stage,
+                requestId
+            );
+
+            if (requestId !== discoveryFilterRequest) {
+                return;
+            }
+
+            names = [...stageNames];
+        }
+
+        discoveryPokemonNames = new Set(names);
+        status.textContent = `${names.length} Pokémon match the selected filters.`;
+        searchPokemon();
+    } catch (error) {
+        console.error('Could not apply Pokémon discovery filters.', error);
+
+        if (requestId === discoveryFilterRequest) {
+            discoveryPokemonNames = new Set();
+            status.textContent =
+                'Could not apply these filters. Please try again.';
+            searchPokemon();
+        }
+    }
 }
 
 // SORT
@@ -1718,6 +1972,25 @@ document.getElementById('pinnedOnly').addEventListener('click', event => {
     button.setAttribute('aria-pressed', String(!isShowingPinned));
     searchPokemon();
 });
+
+['typeFilter', 'abilityFilter', 'generationFilter', 'stageFilter']
+    .forEach(id => {
+        document.getElementById(id).addEventListener(
+            'change',
+            applyDiscoveryFilters
+        );
+    });
+
+document.getElementById('clearDiscoveryFilters').addEventListener(
+    'click',
+    () => {
+        ['typeFilter', 'abilityFilter', 'generationFilter', 'stageFilter']
+            .forEach(id => {
+                document.getElementById(id).value = '';
+            });
+        applyDiscoveryFilters();
+    }
+);
 
 // START
 loadPokemon();
